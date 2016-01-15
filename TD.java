@@ -3,7 +3,6 @@
  */
 public class TD {
     public static void main(String[] args) {
-        Main2.Second();
-        //Main.First();
+        Main2.Second("http://docs.oracle.com/javase/7/docs/api/java/io/package-summary.html");
     }
 }

@@ -1,11 +1,7 @@
 
-import com.sun.tools.javac.parser.UnicodeReader;
-import com.sun.tools.javac.util.StringUtils;
 
 import java.io.*;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.net.SocketAddress;
+import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,9 +10,24 @@ import java.util.List;
  * Created by Hamuel on 1/14/16.
  */
 public class Main2 {
-    public static void Second() {
-        String servHost = "www.muic.mahidol.ac.th";
-        int port = 80;
+    static String servHost;
+    static int port;
+    static String path;
+    public static void Second(String url) {
+        try {
+            URL TheUrl = new URL(url);
+            servHost = TheUrl.getHost();
+            if (TheUrl.getPort() == -1){
+                port = 80;
+            }else {
+                port = TheUrl.getPort();
+            }
+            path = TheUrl.getPath();
+
+        } catch (MalformedURLException e) {
+            System.out.println("The URL format is incorrect");
+            e.printStackTrace();
+        }
         SocketAddress servAdr = new InetSocketAddress(servHost, port);
         Socket s = new Socket();
         try {
@@ -24,7 +35,7 @@ public class Main2 {
             PrintWriter out = new PrintWriter(s.getOutputStream(), true);
             BufferedWriter output = new BufferedWriter(
                     new FileWriter(String.format("%s.txt", servHost.split("\\.")[1])));
-            out.println(HelperFX.getDLRequest(servHost, "/eng/"));
+            out.println(HelperFX.getDLRequest(servHost, path ));
 
 
             int totalByte = 0;
