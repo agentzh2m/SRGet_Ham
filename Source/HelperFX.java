@@ -7,7 +7,8 @@ public class HelperFX {
     }
 
     public static String getResumeReq(String serv, String objname, int Range ){
-        return String.format("GET %s HTTP/1.1\r\n" + "Host: %s\r\n" +"Range: bytes=%d\r\n", objname, serv, Range );
+        return String.format("GET %s HTTP/1.1\r\n" + "Host: %s\r\n" +"Range: bytes=%d-\r\n"
+                +"\r\n\r\n", objname, serv, Range );
     }
 
     public static String unEscapeString(String s){

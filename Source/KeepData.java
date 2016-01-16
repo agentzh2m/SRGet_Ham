@@ -2,7 +2,10 @@ import java.io.Serializable;
 
 public class KeepData implements Serializable {
     public StringBuilder currentData = new StringBuilder();
+    public String ETag;
+    public String DateMod;
     public int CurrentByteTransfered = 0;
+    public int ContentLength;
 
     public int getByte(){
         return CurrentByteTransfered;
@@ -12,12 +15,18 @@ public class KeepData implements Serializable {
         return currentData;
     }
 
+    public int getContentLength (){return ContentLength;}
+
     public void storeByte(int X){
         CurrentByteTransfered = X;
     }
 
     public void storeData(StringBuilder X){
         currentData = X;
+    }
+
+    public void storeContentLength(String X){
+        ContentLength = Integer.parseInt(X);
     }
 
     public void appendByte(int X){
@@ -31,5 +40,7 @@ public class KeepData implements Serializable {
     public void appendData(String X){
         currentData.append(X);
     }
+
+
 
 }

@@ -12,9 +12,11 @@ public class Main2 {
     static int port;
     static String path;
     static String FileName;
+    static String aUrl;
 
     public static void Second(String url) {
         KeepData rs = new KeepData();
+        aUrl = url;
         //extracting URL Data
         try {
             URL TheUrl = new URL(url);
@@ -45,6 +47,8 @@ public class Main2 {
         String contentLength = null;
         StringBuilder Data = new StringBuilder();
         StringBuilder headerContent = new StringBuilder();
+        boolean isResume = false;
+        boolean ResumeChk = false;
 
         try {
             //Read the serialize file if the file exist
@@ -56,16 +60,18 @@ public class Main2 {
                 SerFileIn.close();
                 totalByte = rs.getByte();
                 Data = rs.getData();
+                isResume = true;
             }
 
             s.connect(servAdr); //connect the socket to server
             PrintWriter out = new PrintWriter(s.getOutputStream(), true); //open a stream to write data to send to socket
             BufferedWriter output = new BufferedWriter(
                     new FileWriter(String.format("%s.txt", FileName))); //create a new file to keep "data"
-            out.println(HelperFX.getDLRequest(servHost, path )); // send request to server
-
-
-
+            if (isResume){
+                out.println(HelperFX.getResumeReq(servHost, path, rs.getByte())); //ser file exist therefore send resume request
+            }else {
+                out.println(HelperFX.getDLRequest(servHost, path)); // send request to server to download
+            }
             int c = 0;
             s.setReceiveBufferSize(1024);
 
@@ -95,47 +101,51 @@ public class Main2 {
                         if (headerExtracted){
                             Data.append(x+ "\n"); //Keep Data that is not a part of the header
                         }
-                        if (x.contains("Content-Length")){
+                        if (x.contains("Content-Length") && !isResume){
                             contentLength = x.split(": ")[1]; //extract content length in Byte
+                            rs.storeContentLength(x.split(": ")[1].replace("\r", ""));
                         }
                         //detect the head of the header
                         if (x.equals("\r")){
                             startRecv = true;
                             headerExtracted = true;
                        }
+                        //check the header if the content can resume or not
+                        if (isResume && x.contains("206 Partial Content")){
+                            ResumeChk = true;
+                        }
+
                     }
                 }
-
+                //Keep Data in case of resume
                 rs.storeByte(totalByte);
                 rs.storeData(Data);
                 SerOut.writeObject(rs);
                 SerOut.flush();
                 SerOut.close();
-
-                if (startRecv && (totalByte - headerSize >= Integer.parseInt(contentLength.replace("\r", "")))){
-                    SerOut.close();
-                    tempDL.close();
-
-                    boolean SerDel = fs.delete();
-                    System.out.println("<-----Below is Header Content ----->");
-                    System.out.println(headerContent);
-                    System.out.println("<-----Below is Data Content ----->");
-                    System.out.println(Data);
-                    output.write(Data.toString());
-                    System.out.println(String.format("The serialize data have been deleted %b", SerDel));
-                    System.out.println(String.format("The total amount of data recieve is %d byte ", totalByte ));
-                    //System.out.println(String.format("The header size is %d", headerSize) );
-                    System.out.println("The actual content length is: " + contentLength);
-                    System.out.println(String.format("Total Data Content is %d byte", totalByte - headerSize));
-                    System.out.println("Download Completed!");
-                    output.close();
-                    s.close();
+                //if cannot resume we delete the ser file and download all over from start
+                if (isResume && !ResumeChk){
+                    System.out.println("This URL does not support resume therefore we will overwrite instead");
+                    fs.delete();
+                    Second(url);
                     break;
                 }
-                //Keep Data in case of resume
 
-
-
+                if (isResume){
+                    if (startRecv && (totalByte - headerSize >= rs.getContentLength())){
+                        SerOut.close();
+                        tempDL.close();
+                        FinishConnection(fs, s, Data, output, headerContent, totalByte, Integer.toString(rs.getByte()), headerSize);
+                        break;
+                    }
+                }else {
+                    if (startRecv && (totalByte - headerSize >= Integer.parseInt(contentLength.replace("\r", "")))){
+                        SerOut.close();
+                        tempDL.close();
+                        FinishConnection(fs, s, Data, output, headerContent, totalByte, contentLength, headerSize);
+                        break;
+                    }
+                }
 
             }
 
@@ -144,6 +154,24 @@ public class Main2 {
         }catch (ClassNotFoundException exx){
             exx.printStackTrace();
         }
+
+    }
+
+    public static void FinishConnection(File fs, Socket s, StringBuilder Data, BufferedWriter output,
+                                        StringBuilder headerContent, int totalByte, String contentLength, int headerSize) throws IOException{
+        boolean SerDel = fs.delete();
+        System.out.println("<-----Below is Header Content ----->");
+        System.out.println(headerContent);
+        System.out.println("<-----Below is Data Content ----->");
+        System.out.println(Data);
+        output.write(Data.toString());
+        System.out.println(String.format("The total amount of data recieve is %d byte ", totalByte ));
+        System.out.println(String.format("The header size is %d", headerSize) );
+        System.out.println("The actual content length is: " + contentLength);
+        System.out.println(String.format("Total Data Content is %d byte", totalByte - headerSize));
+        System.out.println("Download Completed!");
+        output.close();
+        s.close();
 
     }
 
