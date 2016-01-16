@@ -3,6 +3,8 @@
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  * Created by Hamuel on 1/14/16.
@@ -65,8 +67,7 @@ public class Main2 {
 
             s.connect(servAdr); //connect the socket to server
             PrintWriter out = new PrintWriter(s.getOutputStream(), true); //open a stream to write data to send to socket
-            BufferedWriter output = new BufferedWriter(
-                    new FileWriter(String.format("%s.txt", FileName))); //create a new file to keep "data"
+
             if (isResume){
                 out.println(HelperFX.getResumeReq(servHost, path, rs.getByte())); //ser file exist therefore send resume request
             }else {
@@ -90,7 +91,7 @@ public class Main2 {
                     Data.append("");
                 }
                 //header manipulation to get Content-Length in Byte
-                if (stt.contains("Content-Length")){
+                if (stt.contains("Content-Length") && !startRecv){
                     String xx[] = stt.split("\n");
                     boolean headerExtracted = false;
                     for (String x: xx ){
@@ -105,6 +106,22 @@ public class Main2 {
                             contentLength = x.split(": ")[1]; //extract content length in Byte
                             rs.storeContentLength(x.split(": ")[1].replace("\r", ""));
                         }
+                        if (x.contains("Last-Modified") && !isResume){
+                            rs.storeDate(x.split(": ")[1].replace("\r","" )); //store the data to check if the file change or not
+                        }
+                        if (x.contains("ETag:") && !isResume){
+                            rs.storeTag(x.split(": ")[1].replace("\r","")); //store the tag to check if it is the same file
+                        }
+
+                        if (x.contains("Last-Modified") && isResume){
+                            //not finish but basicly check that the file have been modified or not
+                           LocalDateTime.parse(x.split(": ")[1].replace("\r",""), DateTimeFormatter.RFC_1123_DATE_TIME).isEqual(rs.getDate());
+                        }
+
+                        if (x.contains("ETag: ") && isResume){
+                            //not finish but check that the tag of the file is the same or not
+                            boolean bbb = rs.getTag().equals(x.split(": ")[1].replace("\r",""));
+                        }
                         //detect the head of the header
                         if (x.equals("\r")){
                             startRecv = true;
@@ -112,6 +129,8 @@ public class Main2 {
                        }
                         //check the header if the content can resume or not
                         if (isResume && x.contains("206 Partial Content")){
+
+                            System.out.println("Start Resuming!!!");
                             ResumeChk = true;
                         }
 
@@ -135,14 +154,15 @@ public class Main2 {
                     if (startRecv && (totalByte - headerSize >= rs.getContentLength())){
                         SerOut.close();
                         tempDL.close();
-                        FinishConnection(fs, s, Data, output, headerContent, totalByte, Integer.toString(rs.getByte()), headerSize);
+                        FinishConnection(fs, s, Data, headerContent, totalByte, Integer.toString(rs.getByte()), headerSize);
                         break;
                     }
                 }else {
                     if (startRecv && (totalByte - headerSize >= Integer.parseInt(contentLength.replace("\r", "")))){
                         SerOut.close();
                         tempDL.close();
-                        FinishConnection(fs, s, Data, output, headerContent, totalByte, contentLength, headerSize);
+
+                        FinishConnection(fs, s, Data, headerContent, totalByte, contentLength, headerSize);
                         break;
                     }
                 }
@@ -157,8 +177,10 @@ public class Main2 {
 
     }
 
-    public static void FinishConnection(File fs, Socket s, StringBuilder Data, BufferedWriter output,
+    public static void FinishConnection(File fs, Socket s, StringBuilder Data,
                                         StringBuilder headerContent, int totalByte, String contentLength, int headerSize) throws IOException{
+        BufferedWriter output = new BufferedWriter(
+                new FileWriter(String.format("%s.txt", FileName))); //create a new file to keep "data"
         boolean SerDel = fs.delete();
         System.out.println("<-----Below is Header Content ----->");
         System.out.println(headerContent);
