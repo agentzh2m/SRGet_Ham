@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
 
-public class KeepData implements Serializable {
+public class KeepData  {
     public StringBuilder currentData = new StringBuilder();
     public String ETag;
     public LocalDateTime DateMod;

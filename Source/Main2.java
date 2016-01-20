@@ -1,5 +1,7 @@
 
 
+import com.sun.xml.internal.ws.encoding.MtomCodec;
+
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
@@ -17,7 +19,10 @@ public class Main2 {
     static String aUrl;
 
     public static void Second(String url) {
+        //keep important header data
         KeepData rs = new KeepData();
+        byte[] TotalByte = new byte[2048];
+
         aUrl = url;
         //extracting URL Data
         try {
@@ -53,13 +58,11 @@ public class Main2 {
         boolean ResumeChk = false;
 
         try {
-            //Read the serialize file if the file exist
+            //Read the file if the resumable file exist
             if (fs.exists()) {
-                FileInputStream SerFileIn = new FileInputStream(FileName + ".ser");
-                ObjectInputStream SerIn = new ObjectInputStream(SerFileIn);
-                rs = (KeepData) SerIn.readObject();
-                SerIn.close();
-                SerFileIn.close();
+
+                FileInputStream FileIn = new FileInputStream(FileName + ".hammy");
+                FileIn.read();
                 totalByte = rs.getByte();
                 Data = rs.getData();
                 isResume = true;
@@ -73,14 +76,9 @@ public class Main2 {
             }else {
                 out.println(HelperFX.getDLRequest(servHost, path)); // send request to server to download
             }
-            int c = 0;
             s.setReceiveBufferSize(1024);
 
             while (true){
-                //create Serialize file for resume support
-                FileOutputStream tempDL = new FileOutputStream(FileName+".ser"); //create new file for storing serializable
-                ObjectOutputStream SerOut = new ObjectOutputStream(tempDL); //open stream to write serializable object
-
                 byte[] bb = new byte[1024];
                 currentByte = s.getInputStream().read(bb); //store byte in bb and byte number in currentByte
                 totalByte += currentByte; //add currentByte to the total Byte
@@ -90,6 +88,9 @@ public class Main2 {
                     Data.append(stt);
                     Data.append("");
                 }
+                //create file while downloading
+                FileOutputStream DL_ing = new FileOutputStream(FileName+".hammy"); //create new file for storing progress
+                DL_ing.write(bb);
                 //header manipulation to get Content-Length in Byte
                 if (stt.contains("Content-Length") && !startRecv){
                     String xx[] = stt.split("\n");
@@ -139,9 +140,7 @@ public class Main2 {
                 //Keep Data in case of resume
                 rs.storeByte(totalByte);
                 rs.storeData(Data);
-                SerOut.writeObject(rs);
-                SerOut.flush();
-                SerOut.close();
+
                 //if cannot resume we delete the ser file and download all over from start
                 if (isResume && !ResumeChk){
                     System.out.println("This URL does not support resume therefore we will overwrite instead");
@@ -152,16 +151,13 @@ public class Main2 {
 
                 if (isResume){
                     if (startRecv && (totalByte - headerSize >= rs.getContentLength())){
-                        SerOut.close();
-                        tempDL.close();
+                        DL_ing.close();
                         FinishConnection(fs, s, Data, headerContent, totalByte, Integer.toString(rs.getByte()), headerSize);
                         break;
                     }
                 }else {
                     if (startRecv && (totalByte - headerSize >= Integer.parseInt(contentLength.replace("\r", "")))){
-                        SerOut.close();
-                        tempDL.close();
-
+                        DL_ing.close();
                         FinishConnection(fs, s, Data, headerContent, totalByte, contentLength, headerSize);
                         break;
                     }
@@ -171,8 +167,6 @@ public class Main2 {
 
         } catch (IOException ex) {
             ex.printStackTrace();
-        }catch (ClassNotFoundException exx){
-            exx.printStackTrace();
         }
 
     }
