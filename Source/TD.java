@@ -7,6 +7,10 @@ public class TD {
         //test01.newDL();
         mainDL test02 = new mainDL("http://pngimg.com/upload/chicken_PNG2145.png", "chicken.png");
         test02.newDL();
+
+
+        //mainDL test03 = new mainDL("https://www.httpwatch.com/httpgallery/chunked/chunkedimage.aspx", "testimg.aspx");
+        //test03.newDL();
         //TestSer.testFile();
     }
 }
