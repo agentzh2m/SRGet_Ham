@@ -99,6 +99,7 @@ public class mainDL {
                     //write data into a .DATA file for resume support
                 } else {
                     dataFile.write(currentData, 0, currentByte);
+                    System.out.println(String.format("Download %f percent",(double)(((double)totalByte - (double)totalHeadByte)/(double)headerContentLength) * 100.00)  );
 
                 }
                 //kill the download if the byte downloaded equals content length
@@ -156,7 +157,6 @@ public class mainDL {
             out.println(HelperFX.getResumeReq(url.getHost(), url.getPath(), currentSize));
             long currentStartSize = currentSize;
             while ((currentByte = sock.getInputStream().read(currentData)) != -1){
-                System.out.println(currentSize);
                 currentSize += currentByte;
                 //validating header
                 if (!rcv){
@@ -193,7 +193,7 @@ public class mainDL {
                 }else {
                     if (checkContentLength && checkETag && checkLastMod){
                         dataFile.write(currentData, 0, currentByte);
-                        System.out.println(String.format("Download %f percent",(double)((currentSize - totalHeadByte)/headerContentLength) *100)  );
+                        System.out.println(String.format("Download %f percent",(double)(((double)currentSize - (double)totalHeadByte)/(double)headerContentLength) *100.00)  );
                         if (currentSize - totalHeadByte == headerContentLength ){
                             System.out.println("Download Completed");
                             dataFile.close();
