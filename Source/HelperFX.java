@@ -6,7 +6,7 @@ public class HelperFX {
         return String.format("GET %s HTTP/1.1\r\n" + "Host: %s" + "\r\n\r\n", objname, serv );
     }
 
-    public static String getResumeReq(String serv, String objname, int Range ){
+    public static String getResumeReq(String serv, String objname, long Range ){
         return String.format("GET %s HTTP/1.1\r\n" + "Host: %s\r\n" +"Range: bytes=%d-\r\n"
                 +"\r\n\r\n", objname, serv, Range );
     }

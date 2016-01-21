@@ -7,20 +7,21 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class mainDL {
-    String fname;
-    URL url;
+    public String fname;
+    public URL url;
     int port;
     int totalByte = 0;
-    int totalHeadByte;
-    int headerContentLength;
-    String headerETag;
-    String headerLastMod;
+    int totalHeadByte = 0;
+    int headerContentLength = 0;
+    String headerETag = "";
+    String headerLastMod = "";
     byte[] currentData;
     boolean rcv = false;
     boolean cte = false;
     StringBuilder headerContent;
     Socket sock;
     PrintWriter out;
+    FileOutputStream dataFile;
 
     public mainDL(String url_, String Filename) {
 
@@ -49,18 +50,20 @@ public class mainDL {
         currentData = new byte[1024];
         try {
             BufferedWriter headFile = new BufferedWriter(new FileWriter(fname + ".HEAD", false));
-            FileOutputStream dataFile = new FileOutputStream(fname + ".DATA", true);
+            dataFile = new FileOutputStream(fname + ".DATA", true);
             out.println(HelperFX.getDLRequest(url.getHost(), url.getPath()));
             int currentByte = 0;
             System.out.println("Download Starto!!");
-            while (currentByte != 1) {
+            while (currentByte != -1) {
                 currentData = new byte[1024];
                 currentByte = sock.getInputStream().read(currentData);
                 totalByte += currentByte;
+                //extract header content
                 if (!rcv) {
                     headerContent.append(new String(currentData));
                     for (String content : headerContent.toString().split("\n")) {
                         if (!rcv) {
+                            System.out.println(content);
                             totalHeadByte += content.length() + 1;
                             if (content.contains("Content-Length")) {
                                 headerContentLength = Integer.parseInt(content.split(": ")[1].replace("\r", ""));
@@ -93,16 +96,19 @@ public class mainDL {
                             break;
                         }
                     }
+                    //write data into a .DATA file for resume support
                 } else {
                     dataFile.write(currentData, 0, currentByte);
 
                 }
+                //kill the download if the byte downloaded equals content length
                 if (totalByte - totalHeadByte == headerContentLength) {
                     System.out.println("Download Completed!");
                     dataFile.close();
+                    sock.close();
                     break;
                 }
-
+                //implementing chunked transfer encoding support (not finish will finish it after finishing resume)
                 if (cte) {
                     String st = new String(currentData);
                     for (String stx : st.split("/r/n")) {
@@ -112,6 +118,7 @@ public class mainDL {
                 }
 
             }
+            //delete and rename files after finish downloading completely
             File HFile = new File(fname + ".HEAD");
             File DFile = new File(fname + ".DATA");
             HFile.delete();
@@ -122,29 +129,93 @@ public class mainDL {
     }
 
     public void startResume(File head, File data){
+        boolean checkContentLength = false;
+        boolean checkETag = true;
+        boolean checkLastMod = true;
         try {
-            long currentSize = data.getFreeSpace();
+            long currentSize = data.length();
             BufferedReader readHead = new BufferedReader(new FileReader(head));
-            FileOutputStream writeData = new FileOutputStream(data, true);
-            String stx = "";
             currentData = new byte[1024];
-            while (!stx.equals(null)){
-                stx = readHead.readLine();
-                if (stx.contains("headerContentLength")){
-                    headerContentLength = Integer.parseInt(stx.split(": ")[1]);
+            String line = "";
+            while ((line = readHead.readLine()) != null){
+                if (line.contains("headerContentLength")){
+                    headerContentLength = Integer.parseInt(line.split(": ")[1]);
+                    System.out.println("The header content Length is: " + line.split(": ")[1]);
                 }
-                if (stx.contains("headerETag")){
-                    headerETag = stx.split(": ")[1];
+                if (line.contains("headerETag")){
+                    headerETag = line.split(": ")[1];
                 }
-                if (stx.contains("headLastMod")){
-                    headerLastMod = stx.split(": ")[1];
+                if (line.contains("headLastMod")){
+                    headerLastMod = line.split(": ")[1];
                 }
             }
+            System.out.println("Finish recovering head info");
             currentData = new byte[1024];
             int currentByte = 0;
-            while (currentByte != -1){
-                currentByte = sock.getInputStream().read(currentData);
+            dataFile = new FileOutputStream(data, true);
+            out.println(HelperFX.getResumeReq(url.getHost(), url.getPath(), currentSize));
+            long currentStartSize = currentSize;
+            while ((currentByte = sock.getInputStream().read(currentData)) != -1){
+                System.out.println(currentSize);
+                currentSize += currentByte;
+                //validating header
+                if (!rcv){
+                    String byteContent = new String(currentData);
+                    for (String content: byteContent.split("\n")){
+                        if (!rcv) {
+                            totalHeadByte += content.length() + 1;
+                            if (content.contains("Content-Length")) {
+                                checkContentLength = (long) headerContentLength == currentStartSize + Long.parseLong(content.split(": ")[1].replace("\r", ""));
+                                System.out.println(currentSize + Long.parseLong(content.split(": ")[1].replace("\r", "")));
+                            }
+                            if (content.contains("ETag")&& !headerETag.isEmpty()) {
+                                checkETag = headerETag.equals(content.split(": ")[1].replace("\r", ""));
+                            }
+                            if (content.contains("Last-Modified") && !headerLastMod.isEmpty()) {
+                                checkLastMod = headerLastMod.equals(content.split(": ")[1].replace("\r", ""));
+                            }
+                            if (content.equals("\r")) {
+                                rcv = true;
+                            }
+                        }else{
+                            byte[] tempData = new byte[currentData.length - totalHeadByte];
+                            int j = 0;
+                            for (int i = totalHeadByte; i < currentData.length; i++) {
+                                tempData[j] = currentData[i];
+                                j++;
+                            }
+                            dataFile.write(tempData);
+                            System.out.println("Header Extracted from resume phase");
+                            System.out.println(String.format("start resuming file, current file size %d, actual header file size %d ", currentSize, headerContentLength));
+                            break;
+                        }
+                    }
+                }else {
+                    if (checkContentLength && checkETag && checkLastMod){
+                        dataFile.write(currentData, 0, currentByte);
+                        System.out.println(String.format("Download %f percent",(double)((currentSize - totalHeadByte)/headerContentLength) *100)  );
+                        if (currentSize - totalHeadByte == headerContentLength ){
+                            System.out.println("Download Completed");
+                            dataFile.close();
+                            sock.close();
+                            break;
+                        }
+                    }else {
+                        System.out.println("The file you resume have changed therefore we will download a new file instead");
+                        System.out.println(head.delete());
+                        System.out.println(data.delete());
+                        System.out.println("Starting the redownload!!");
+                        newDL();
+                        break;
+                    }
+                }
+
             }
+            readHead.close();
+            dataFile.close();
+            System.out.println("Cleaning up and renaming!");
+            System.out.println(head.delete());
+            System.out.println(data.renameTo(new File(fname)));
         } catch (IOException e) {
             e.printStackTrace();
         }
