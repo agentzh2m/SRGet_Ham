@@ -15,7 +15,8 @@ public class chkDL {
     Socket sock;
     int port;
     PrintWriter out;
-    StringBuilder allHead;
+    public String keepNewLocation;
+    boolean redir = false;
     public chkDL(String url_) {
         try {
             url = new URL(url_);
@@ -32,25 +33,33 @@ public class chkDL {
             out.println(HelperFX.getHeadReq(url.getHost(), url.getPath()));
             BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
             String line = "";
+            System.out.println("Verifying header and download type");
             while ((line = in.readLine()) != null){
-                allHead.append(line + "\n");
+                System.out.println(line);
+                if (line.isEmpty()){
+                    break;
+                }
+               if (redir){
+                   if (line.contains("Location")){
+                       keepNewLocation = line.split(": ")[1];
+                       System.out.println("Redirecting!!!");
+                       break;
+                   }
+               }
             }
             sock.close();
+            System.out.println("Finish verifying");
         } catch (IOException ex) {
             ex.printStackTrace();
         }
     }
 
-    public boolean chkOK() {
-        return allHead.toString().contains("200 OK");
+
+    public void chkredir(String stx){
+        if (stx.contains("301 Moved Permanently") || stx.contains("302 Found")){
+            redir = true;
+        }
     }
 
-    public boolean chkredir(){
-        return allHead.toString().contains("301 Moved Permanently");
-    }
-
-    public boolean chkChunked(){
-        return allHead.toString().contains("Transfer-Encoding: \"chunked\" ");
-    }
 
 }

@@ -5,6 +5,7 @@ import java.net.SocketAddress;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 public class mainDL {
     public String fname;
@@ -17,11 +18,12 @@ public class mainDL {
     String headerLastMod = "";
     byte[] currentData;
     boolean rcv = false;
-    boolean cte = false;
+    boolean etc = false;
     StringBuilder headerContent;
     Socket sock;
     PrintWriter out;
     FileOutputStream dataFile;
+    SocketAddress servAdr;
 
     public mainDL(String url_, String Filename) {
 
@@ -34,7 +36,7 @@ public class mainDL {
                 port = url.getPort();
             }
             sock = new Socket();
-            SocketAddress servAdr = new InetSocketAddress(url.getHost(), port);
+            servAdr = new InetSocketAddress(url.getHost(), port);
             sock.connect(servAdr);
             out = new PrintWriter(sock.getOutputStream(), true); //open a stream to write data to send to socket
             sock.setReceiveBufferSize(1024);
@@ -63,7 +65,7 @@ public class mainDL {
                     headerContent.append(new String(currentData));
                     for (String content : headerContent.toString().split("\n")) {
                         if (!rcv) {
-                            System.out.println(content);
+                            //System.out.println(content);
                             totalHeadByte += content.length() + 1;
                             if (content.contains("Content-Length")) {
                                 headerContentLength = Integer.parseInt(content.split(": ")[1].replace("\r", ""));
@@ -76,6 +78,12 @@ public class mainDL {
                             }
                             if (content.equals("\r")) {
                                 rcv = true;
+                            }
+                            if (content.equals("Transfer-Encoding: chunked")){
+                                ectDL();
+                                sock.close();
+                                etc = true;
+                                break;
                             }
                         } else {
                             byte[] tempData = new byte[currentData.length - totalHeadByte];
@@ -107,12 +115,8 @@ public class mainDL {
                     break;
                 }
                 //implementing chunked transfer encoding support (not finish will finish it after finishing resume)
-                if (cte) {
-                    String st = new String(currentData);
-                    for (String stx : st.split("/r/n")) {
-                        System.out.println(stx);
-                        System.out.println("this length of this is: " + stx.length());
-                    }
+                if (etc){
+                    break;
                 }
 
             }
@@ -131,6 +135,7 @@ public class mainDL {
         boolean checkETag = true;
         boolean checkLastMod = true;
         try {
+            sock.connect(servAdr);
             long currentSize = data.length();
             BufferedReader readHead = new BufferedReader(new FileReader(head));
             currentData = new byte[1024];
@@ -153,6 +158,7 @@ public class mainDL {
             dataFile = new FileOutputStream(data, true);
             out.println(HelperFX.getResumeReq(url.getHost(), url.getPath(), currentSize));
             long currentStartSize = currentSize;
+            boolean finished = false;
             while ((currentByte = sock.getInputStream().read(currentData)) != -1){
                 currentSize += currentByte;
                 //validating header
@@ -195,6 +201,7 @@ public class mainDL {
                             System.out.println("Download Completed");
                             dataFile.close();
                             sock.close();
+                            finished = true;
                             break;
                         }
                     }else {
@@ -208,11 +215,15 @@ public class mainDL {
                 }
 
             }
-            readHead.close();
-            dataFile.close();
-            System.out.println("Cleaning up and renaming!");
-            System.out.println(head.delete());
-            System.out.println(data.renameTo(new File(fname)));
+            if (finished) {
+                readHead.close();
+                dataFile.close();
+                System.out.println("Cleaning up and renaming!");
+                System.out.println(head.delete());
+                System.out.println(data.renameTo(new File(fname)));
+            }else {
+                System.out.println("Conneciton Lost!! you can resume again to redownload");
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -220,5 +231,43 @@ public class mainDL {
 
     public void ectDL(){
         //ect have no resume support since we don't know the content length
+        try {
+            dataFile = new FileOutputStream(fname + ".HAMUEL");
+            rcv = false;
+            currentData = new byte[1024];
+            int currentByte = 0;
+            while ((currentByte = sock.getInputStream().read(currentData)) != -1) {
+                currentData = new byte[1024];
+                String stx = new String(currentData);
+                if (!rcv){
+                    for (String content: stx.split("\n")){
+                        if (content.equals("\r")){
+                            rcv = true;
+                            break;
+                        }
+                    }
+                }else {
+                    List<Integer> writingData = new ArrayList<>();
+                    for (String content: stx.split("\n")){
+                        if (Pattern.matches("[0-9]+", content.replace("\r", ""))) {
+                            writingData.add(Integer.parseInt(content.replace("\r", "")) + content.length() + 1);
+                        }
+                    }
+                    int c = 0;
+                    for (Integer w: writingData){
+                        c+=w;
+                        dataFile.write(currentData, c, w);
+                        c+=2;
+                    }
+                }
+            }
+            dataFile.close();
+            File DFile = new File(fname + ".HAMUEL");
+            System.out.println("ECT Download completed!");
+            System.out.println(DFile.renameTo(new File(fname)));
+        }catch (IOException ex){
+            ex.printStackTrace();
+        }
+
     }
 }
