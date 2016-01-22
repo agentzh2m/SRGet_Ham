@@ -11,6 +11,10 @@ public class HelperFX {
                 +"\r\n\r\n", objname, serv, Range );
     }
 
+    public static String getHeadReq(String serv, String objname){
+        return String.format("HEAD %s HTTP/1.1\r\n" + "Host: %s" + "\r\n\r\n", objname, serv );
+    }
+
 
     public static String unEscapeString(String s){
         StringBuilder sb = new StringBuilder();
