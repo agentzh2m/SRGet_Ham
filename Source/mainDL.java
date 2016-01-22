@@ -74,9 +74,6 @@ public class mainDL {
                             if (content.contains("Last-Modified")) {
                                 headerLastMod = content.split(": ")[1].replace("\r", "");
                             }
-                            if (content.contains("Transfer-Encoding")) {
-                                cte = content.split(": ")[1].replace("\r", "").equals("chunked");
-                            }
                             if (content.equals("\r")) {
                                 rcv = true;
                             }
@@ -219,5 +216,9 @@ public class mainDL {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public void ectDL(){
+        //ect have no resume support since we don't know the content length
     }
 }

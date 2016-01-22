@@ -35,6 +35,7 @@ public class chkDL {
             while ((line = in.readLine()) != null){
                 allHead.append(line + "\n");
             }
+            sock.close();
         } catch (IOException ex) {
             ex.printStackTrace();
         }
@@ -47,4 +48,9 @@ public class chkDL {
     public boolean chkredir(){
         return allHead.toString().contains("301 Moved Permanently");
     }
+
+    public boolean chkChunked(){
+        return allHead.toString().contains("Transfer-Encoding: \"chunked\" ");
+    }
+
 }
