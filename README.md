@@ -13,6 +13,7 @@ can run ./srget.sh -o <output> -c <number of connection> <url>
  Note: for people using IntelliJ just source to current working directory and IntelliJ you can write the compile
  and run the program without any problem or technical difficulties
  
- The script will be updating very soon
+The script is updated you can now run the script srget therefore you can call
+srget -o <Filename> <http://www.hamuel.com> YEH!! nice binary source in "Out"
 
 
