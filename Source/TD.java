@@ -16,6 +16,8 @@ public class TD {
         //test03.newDL();
         //TestSer.testFile();
         //test Resume
+        chkDL test411 = new chkDL("http://n467us.com/Data%20Files/Seattle%20Sectional%20South.jpg");
+        concurDL test41 = new concurDL("http://n467us.com/Data%20Files/Seattle%20Sectional%20South.jpg","bigimg2.jpg", 5);
     }
 
     public void startDL(String url, String filename){

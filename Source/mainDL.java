@@ -104,7 +104,7 @@ public class mainDL {
                     //write data into a .DATA file for resume support
                 } else {
                     dataFile.write(currentData, 0, currentByte);
-                    System.out.println(String.format("Download %f percent",(double)(((double)totalByte - (double)totalHeadByte)/(double)headerContentLength) * 100.00)  );
+                    //System.out.println(String.format("Download %f percent",(double)(((double)totalByte - (double)totalHeadByte)/(double)headerContentLength) * 100.00)  );
 
                 }
                 //kill the download if the byte downloaded equals content length

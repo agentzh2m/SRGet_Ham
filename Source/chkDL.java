@@ -16,6 +16,7 @@ public class chkDL {
     int port;
     PrintWriter out;
     public String keepNewLocation;
+    public static int contentLength = -1;
     boolean redir = false;
     public chkDL(String url_) {
         try {
@@ -35,7 +36,6 @@ public class chkDL {
             String line = "";
             System.out.println("Verifying header and download type");
             while ((line = in.readLine()) != null){
-                System.out.println(line);
                 if (line.isEmpty()){
                     break;
                 }
@@ -46,6 +46,11 @@ public class chkDL {
                        break;
                    }
                }
+                if (line.contains("Content-Length")){
+                    contentLength = Integer.parseInt(line.split(": ")[1].replace("\r", ""));
+                    System.out.println("Content Length detected");
+                    System.out.println("Content Length is: " + contentLength);
+                }
             }
             sock.close();
             System.out.println("Finish verifying");
