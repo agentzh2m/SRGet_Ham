@@ -15,6 +15,11 @@ public class HelperFX {
         return String.format("HEAD %s HTTP/1.1\r\n" + "Host: %s" + "\r\n\r\n", objname, serv );
     }
 
+    public static  String getPartContent(String serv, String objname, long from, long to){
+        return String.format("GET %s HTTP/1.1\r\n" + "Host: %s\r\n" + "Range: bytes=%d-%d\r\n" +
+                "\r\n\r\n", objname, serv, from, to);
+    }
+
 
     public static String unEscapeString(String s){
         StringBuilder sb = new StringBuilder();
