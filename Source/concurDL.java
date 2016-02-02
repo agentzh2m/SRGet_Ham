@@ -23,9 +23,9 @@ public class concurDL{
            List<Long> partitionSize = new ArrayList<>();
            partitionSize.add(splitSize + (chkDL.contentLength % conn));
            logger.log(Level.INFO, "Split size is: " + splitSize);
-           FileOutputStream dataFile = null;
+           RandomAccessFile dataFile = null;
            try {
-               dataFile = new FileOutputStream(filename+".DATAC",true);
+               dataFile = new RandomAccessFile(filename+".DATAC","rw");
            } catch (IOException e) {
                e.printStackTrace();
            }
@@ -37,14 +37,10 @@ public class concurDL{
            int c = 0;
            List<Thread> runningThread = new ArrayList<>();
            for (long size: partitionSize){
-               newCon TH = new newCon();
+               newCon TH = new newCon(c, partitionSize.get(0), size, splitSize);
                Thread myTH = new Thread(TH);
                runningThread.add(myTH);
-               TH.initialSize = partitionSize.get(0);
-               TH.size = size;
-               TH.splitSize = splitSize;
                TH.dataFile = dataFile;
-               TH.ThreadNum = c;
                logger.log(Level.INFO, String.format("Assign byte: %d, to Thread number: %d", size, c));
                myTH.start();
                c++;
@@ -61,33 +57,43 @@ public class concurDL{
    }
 
     public class newCon implements Runnable{
+        public newCon(int threadNum_, long initSize, long size_, long splitSize_){
+            ThreadNum = threadNum_;
+            initialSize = initSize;
+            size = size_;
+            splitSize = splitSize_;
+        }
         long size;
         long initialSize;
         int ThreadNum;
         long splitSize;
-        FileOutputStream dataFile;
+        long headerContentLength;
+        long startingPOS;
+        RandomAccessFile dataFile;
         public void run(){
+            int currentByte = 0;
             FileChannel datafile = this.dataFile.getChannel();
             Logger logger = Logger.getLogger("ThreadLog");
             mainDL DL = new mainDL(url, filename);
             logger.log(Level.INFO, "start Thread this thread is: " + ThreadNum, Thread.currentThread());
             try {
                 if (ThreadNum == 0){
-                    splitSize = initialSize;
                     DL.out.println(HelperFX.getPartContent(DL.url.getHost(), DL.url.getPath(), 0, initialSize));
+                    datafile.position(0);
+                    startingPOS = 0;
                 }else{
-                    DL.out.println(HelperFX.getPartContent(DL.url.getHost(), DL.url.getPath(), size - splitSize, size));
-                        datafile.position(size - splitSize);
-                        logger.log(Level.INFO, "This thread seek dataFile to: " + (size - splitSize));
+                    DL.out.println(HelperFX.getPartContent(DL.url.getHost(), DL.url.getPath(), (size - splitSize) + 1, size));
+                    datafile.position((size - splitSize) + 1);
+                    startingPOS = (size - splitSize) + 1;
+                    //logger.log(Level.INFO, "This thread seek dataFile to: " + (size - splitSize) + 1 +", this is thread number: " + ThreadNum);
                 }
 
-                int currentByte = 0;
-                byte[] byteBuffer = new byte[1024];
+                byte[] byteBuffer;
                 boolean rcv = false;
                 int totalByte = 0;
                 while (currentByte != -1){
+                    byteBuffer = new byte[1024];
                     currentByte = DL.sock.getInputStream().read(byteBuffer);
-                    ByteBuffer[] myByte = {ByteBuffer.wrap(byteBuffer)};
                     int totalHeadByte = 0;
                     if (!rcv){
                         String chunkByte = new String(byteBuffer);
@@ -97,32 +103,39 @@ public class concurDL{
                                 if (content.equals("\r")) {
                                     rcv = true;
                                 }
-                                if (content.contains("206")){
-                                    System.out.println(content);
+                             
+                                if (content.contains("Content-Length")){
+                                    headerContentLength = Long.parseLong(content.split(": ")[1].replace("\r", ""));
+                                    //datafile.lock(size-splitSize, headerContentLength, true);
                                 }
-                                //System.out.println(content);
+                                System.out.println(content);
                             }else {
-
-                                datafile.write(myByte, totalHeadByte, currentByte - totalHeadByte);
+                                if (ThreadNum == 1){
+                                    //System.out.println(datafile.position());
+                                }
+                                datafile.position(startingPOS + totalByte);
+                                datafile.write(ByteBuffer.wrap(byteBuffer, totalHeadByte, currentByte - totalHeadByte));
                                 totalByte += currentByte - totalHeadByte;
+                                break;
                             }
                         }
                     }else {
+//                        logger.log(Level.INFO, String.format("Downloaded byte: %d, Thread number: %d, Split Size: %d, current chanel pos: %d",
+//                                totalByte, ThreadNum, splitSize, datafile.position()));
+                        datafile.position(startingPOS + totalByte);
+                        datafile.write(ByteBuffer.wrap(byteBuffer, 0, currentByte));
                         totalByte += currentByte;
-                        //logger.log(Level.INFO, String.format("Downloaded byte: %d, Thread number: %d, Split Size: %d",
-//                                totalByte, ThreadNum, splitSize));
-                        datafile.write(myByte,0, currentByte);
                     }
 
-                    if (totalByte >= splitSize){
+                    if (headerContentLength - totalHeadByte == totalByte){
                         logger.log(Level.INFO, "Thread finish downloading, thread number" + ThreadNum);
                         DL.sock.close();
-                        return;
-
+                        break;
                     }
                 }
             } catch (IOException e) {
                 e.printStackTrace();
+
             }
         }
     }
@@ -130,7 +143,7 @@ public class concurDL{
     public class chkThread implements Runnable{
         List<Thread> currentTH;
         int numberOfThreads;
-        FileOutputStream dataFile;
+        RandomAccessFile dataFile;
         @Override
         public void run(){
             int deadThreads = 0;
