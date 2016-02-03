@@ -1,9 +1,10 @@
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.*;
 
 /**
  * Created by Hamuel on 1/14/16.
@@ -21,14 +22,21 @@ public class TD {
         //test03.newDL();
         //TestSer.testFile();
         //test Resume
-        chkDL test411 = new chkDL("http://n467us.com/Data%20Files/Seattle%20Sectional%20South.jpg");
-        concurDL test41 = new concurDL("http://n467us.com/Data%20Files/Seattle%20Sectional%20South.jpg","TestIMG_C.jpg", 5);
+//        chkDL test411 = new chkDL("http://n467us.com/Data%20Files/Seattle%20Sectional%20South.jpg");
+//        concurDL test41 = new concurDL("http://n467us.com/Data%20Files/Seattle%20Sectional%20South.jpg","TestIMG_C.jpg", 5);
+
+            TD test55 = new TD();
+            test55.ReadSerial("bigFileC.HEADC");
+
 
 //        chkDL test42 = new chkDL("http://cs.muic.mahidol.ac.th/~ktangwon/bigfile.xyz");
-//        concurDL test421 = new concurDL("http://cs.muic.mahidol.ac.th/~ktangwon/bigfile.xyz","bigFileC" , 3);
+//        concurDL test421 = new concurDL("http://cs.muic.mahidol.ac.th/~ktangwon/bigfile.xyz","bigFileC" , 4);
 
 //        TD test001 = new TD();
 //        test001.testChannel();
+//        TD test002 = new TD();
+//        System.out.println(test002.testThreadPool());
+
     }
 
     public void startDL(String url, String filename){
@@ -40,6 +48,31 @@ public class TD {
         }else {
             DL.newDL();
         }
+
+    }
+
+    public int testThreadPool(){
+        int AmountOfPrime = 0;
+        List<Boolean> resultList = Collections.synchronizedList(new ArrayList<>());
+        ExecutorService pool = Executors.newFixedThreadPool(1000);
+        for (int i  = 1; i < 100000000; i++){
+            TD td = new TD();
+            isPrimeThread primer = new isPrimeThread(i , resultList);
+            pool.execute(primer);
+            //pool.submit(primer);
+        }
+        pool.shutdown();
+        while (!pool.isTerminated()){
+
+        }
+
+        for (boolean x: resultList){
+            if (x){
+                AmountOfPrime++;
+            }
+        }
+
+        return AmountOfPrime - 1;
 
     }
 
@@ -74,6 +107,57 @@ public class TD {
 
         @Override
         public void run(){
+
+        }
+    }
+
+    public void ReadSerial(String filename) {
+        try {
+            FileInputStream fis = new FileInputStream(filename);
+            ObjectInputStream ois = new ObjectInputStream(fis);
+            concurMeta META = (concurMeta) ois.readObject();
+            System.out.println("Start position");
+            for (long x: META.threadStartAt){
+                System.out.println(x);
+            }
+            System.out.println("Loaded stuff");
+            for (long x: META.workDoneOnEachPart){
+                System.out.println(x);
+            }
+        }catch (IOException ex){
+            ex.printStackTrace();
+        }catch (ClassNotFoundException ex){
+            ex.printStackTrace();
+        }
+    }
+
+    public class isPrimeThread implements Runnable{
+        int n;
+        List<Boolean> rst;
+        public isPrimeThread(int n, List<Boolean> resultLst){
+            this.n = n;
+            rst = resultLst;
+        }
+        public void run(){
+            int count = 0;
+            for (int i = 1; i <= Math.sqrt(this.n); i++){
+                if ( this.n % i == 0 ){
+                    count++;
+                }else if (this.n == 2) {
+                    rst.add(true);
+                    return;
+                }else if (this.n == 1){
+                    rst.add(false);
+                    return;
+                }
+            }
+            if (count > 1){
+                rst.add(false);
+            }else {
+                rst.add(true);
+            }
+
+            //System.out.println("  " + this.n + "  " + count + "  " );
 
         }
     }

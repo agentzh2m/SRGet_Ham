@@ -1,8 +1,12 @@
+import com.sun.xml.internal.ws.policy.privateutil.PolicyUtils;
+
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -18,60 +22,93 @@ public class concurDL{
            mainDL DL = new mainDL(url_, filename);
            DL.newDL();
        }else {
-           long splitSize = chkDL.contentLength / conn;
+           long splitSize = chkDL.contentLength / 10;
            //distribute file into array of content Length
            List<Long> partitionSize = new ArrayList<>();
-           partitionSize.add(splitSize + (chkDL.contentLength % conn));
+           partitionSize.add(splitSize + (chkDL.contentLength % 10));
            logger.log(Level.INFO, "Split size is: " + splitSize);
-           RandomAccessFile dataFile = null;
-           try {
-               dataFile = new RandomAccessFile(filename+".DATAC","rw");
-           } catch (IOException e) {
-               e.printStackTrace();
-           }
-           long curSize = splitSize + (chkDL.contentLength % conn);
-           for (int i = 1; i < conn; i++){
+           long curSize = splitSize + (chkDL.contentLength % 10);
+           concurMeta metaFile = new concurMeta(10);
+           metaFile.threadStartAt[0] = 0;
+           for (int i = 1; i < 10; i++){
+               metaFile.threadStartAt[i] = curSize;
                curSize += splitSize;
                partitionSize.add(curSize);
            }
            int c = 0;
-           List<Thread> runningThread = new ArrayList<>();
+           //List<Thread> runningThread = Collections.synchronizedList(new ArrayList<>());
+
+
+           ExecutorService pool = Executors.newFixedThreadPool(conn);
            for (long size: partitionSize){
-               newCon TH = new newCon(c, partitionSize.get(0), size, splitSize);
-               Thread myTH = new Thread(TH);
-               runningThread.add(myTH);
-               TH.dataFile = dataFile;
+               newCon worker = new newCon(c, partitionSize.get(0), size, splitSize, metaFile);
+               //Thread myTH = new Thread(TH);
+               //runningThread.add(myTH);
+               worker.fname = filename;
                logger.log(Level.INFO, String.format("Assign byte: %d, to Thread number: %d", size, c));
-               myTH.start();
+               pool.execute(worker);
+               metaFile.workDoneOnEachPart[c] = splitSize;
+               //myTH.start();
                c++;
            }
-           chkThread cTH = new chkThread();
-           cTH.currentTH = runningThread;
-           cTH.numberOfThreads = partitionSize.size();
-           cTH.dataFile = dataFile;
-           Thread myCTH = new Thread(cTH);
-           myCTH.start();
+           metaFile.workDoneOnEachPart[0] = splitSize + chkDL.contentLength % 10;
+           try {
+               FileOutputStream fos = new FileOutputStream(filename + ".HEADC");
+               ObjectOutputStream oos = new ObjectOutputStream(fos);
+               oos.writeObject(metaFile);
+               oos.close();
+           }catch (Exception ex){
+               ex.printStackTrace();
+           }
+           pool.shutdown();
+           while (!pool.isTerminated()){
+               try {
+                   Thread.sleep(500);
+               } catch (InterruptedException e) {
+                   e.printStackTrace();
+               }
+           }
+           File DATA = new File(filename + ".DATAC");
+           System.out.println("Rename successful? : " + DATA.renameTo(new File(filename)));
 
+
+//           chkThread cTH = new chkThread();
+//           cTH.currentTH = pool;
+//           cTH.numberOfThreads = partitionSize.size();
+//           cTH.fname = filename;
+//           Thread myCTH = new Thread(cTH);
+//           myCTH.start();
 
        }
    }
 
     public class newCon implements Runnable{
-        public newCon(int threadNum_, long initSize, long size_, long splitSize_){
+        public newCon(int threadNum_, long initSize, long size_, long splitSize_, concurMeta metaF){
             ThreadNum = threadNum_;
             initialSize = initSize;
             size = size_;
             splitSize = splitSize_;
+            metaFile = metaF;
         }
+        concurMeta metaFile;
         long size;
         long initialSize;
         int ThreadNum;
         long splitSize;
         long headerContentLength;
         long startingPOS;
-        RandomAccessFile dataFile;
+        String fname;
+        FileOutputStream dataFile;
         public void run(){
+            FileOutputStream fos = null;
+            ObjectOutputStream oos = null;
             int currentByte = 0;
+            try {
+                this.dataFile = new FileOutputStream(fname+".DATAC");
+                fos = new FileOutputStream(fname+".HEADC");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
             FileChannel datafile = this.dataFile.getChannel();
             Logger logger = Logger.getLogger("ThreadLog");
             mainDL DL = new mainDL(url, filename);
@@ -85,13 +122,13 @@ public class concurDL{
                     DL.out.println(HelperFX.getPartContent(DL.url.getHost(), DL.url.getPath(), (size - splitSize) + 1, size));
                     datafile.position((size - splitSize) + 1);
                     startingPOS = (size - splitSize) + 1;
-                    //logger.log(Level.INFO, "This thread seek dataFile to: " + (size - splitSize) + 1 +", this is thread number: " + ThreadNum);
                 }
 
                 byte[] byteBuffer;
                 boolean rcv = false;
                 int totalByte = 0;
                 while (currentByte != -1){
+                    oos = new ObjectOutputStream(fos);
                     byteBuffer = new byte[1024];
                     currentByte = DL.sock.getInputStream().read(byteBuffer);
                     int totalHeadByte = 0;
@@ -106,32 +143,45 @@ public class concurDL{
                              
                                 if (content.contains("Content-Length")){
                                     headerContentLength = Long.parseLong(content.split(": ")[1].replace("\r", ""));
-                                    //datafile.lock(size-splitSize, headerContentLength, true);
                                 }
                                 System.out.println(content);
                             }else {
-                                if (ThreadNum == 1){
-                                    //System.out.println(datafile.position());
-                                }
-                                datafile.position(startingPOS + totalByte);
+                                //datafile.position(startingPOS + totalByte);
                                 datafile.write(ByteBuffer.wrap(byteBuffer, totalHeadByte, currentByte - totalHeadByte));
                                 totalByte += currentByte - totalHeadByte;
+                                this.metaFile.workDoneOnEachPart[ThreadNum] -= currentByte;
+                                try {
+                                    oos.writeObject(metaFile);
+                                }catch (IOException ex){
+                                    oos.close();
+                                    fos.close();
+                                }
                                 break;
                             }
                         }
                     }else {
 //                        logger.log(Level.INFO, String.format("Downloaded byte: %d, Thread number: %d, Split Size: %d, current chanel pos: %d",
 //                                totalByte, ThreadNum, splitSize, datafile.position()));
-                        datafile.position(startingPOS + totalByte);
+                        //datafile.position(startingPOS + totalByte);
                         datafile.write(ByteBuffer.wrap(byteBuffer, 0, currentByte));
                         totalByte += currentByte;
+                        this.metaFile.workDoneOnEachPart[ThreadNum] -= totalByte;
+                        try {
+                            oos.writeObject(metaFile);
+                        }catch (IOException ex){
+                            oos.close();
+                            fos.close();
+                        }
                     }
 
                     if (headerContentLength - totalHeadByte == totalByte){
                         logger.log(Level.INFO, "Thread finish downloading, thread number" + ThreadNum);
                         DL.sock.close();
+                        this.dataFile.close();
+                        oos.close();
                         break;
                     }
+                    //oos.close();
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -141,34 +191,35 @@ public class concurDL{
     }
 
     public class chkThread implements Runnable{
-        List<Thread> currentTH;
+        ExecutorService currentTH;
         int numberOfThreads;
-        RandomAccessFile dataFile;
+        String fname;
         @Override
         public void run(){
-            int deadThreads = 0;
-            while (numberOfThreads != deadThreads){
-                for (Thread thread: currentTH){
-                    if (!thread.isAlive()){
-                        deadThreads++;
-                        currentTH.remove(thread);
-                        Logger.getAnonymousLogger().log(Level.INFO,"Dead Thread detected");
-                        break;
-                    }
-                }
+//            int deadThreads = 0;
+//            while (numberOfThreads != deadThreads){
+//                for (Thread thread: currentTH){
+//                    if (!thread.isAlive()){
+//                        deadThreads++;
+//                        currentTH.remove(thread);
+//                        Logger.getAnonymousLogger().log(Level.INFO,"Dead Thread detected");
+//                        break;
+//                    }
+//                }
+//                try {
+//                    Thread.sleep(500);
+//                } catch (InterruptedException e) {
+//                    e.printStackTrace();
+//                }
+            while (!currentTH.isTerminated()){
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
             }
-            try {
-                dataFile.close();
-                File DATA = new File(filename + ".DATAC");
-                System.out.println("Rename successful?: " + DATA.renameTo(new File(filename)));
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+            File DATA = new File(filename + ".DATAC");
+            System.out.println("Rename successful?: " + DATA.renameTo(new File(filename)));
 
         }
     }
