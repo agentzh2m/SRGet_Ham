@@ -8,10 +8,14 @@ public class interfaceDL {
         interfaceDL start = new interfaceDL();
         if (args.length == 5){
             chkDL CHDK = new chkDL(args[4]);
-            concurDL cDL = new concurDL(args[4], args[1], Integer.parseInt(args[3]));
+            if (CHDK.VERIFIED) {
+                concurDL cDL = new concurDL(args[4], args[1], Integer.parseInt(args[3]));
+            }
         }else if (args.length == 3){
             chkDL CHDK = new chkDL(args[2]);
-            start.startDL(args[2], args[1]);
+            if (CHDK.VERIFIED) {
+                start.startDL(args[2], args[1]);
+            }
         }else {
             System.out.println("Usage: srget -o <output file> [-c <number of connection>] <URL>");
         }

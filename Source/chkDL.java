@@ -7,9 +7,6 @@ import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.URL;
 
-/**
- * Created by Hamuel on 1/22/16.
- */
 public class chkDL {
     URL url;
     Socket sock;
@@ -18,6 +15,7 @@ public class chkDL {
     public String keepNewLocation;
     public static int contentLength = -1;
     boolean redir = false;
+    public boolean VERIFIED = true;
     public chkDL(String url_) {
         try {
             url = new URL(url_);
@@ -35,15 +33,31 @@ public class chkDL {
             BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream()));
             String line = "";
             System.out.println("Verifying header and download type");
+            if (url.getProtocol().equals("https")){
+                System.out.println("HTTPS is not supported sorry please use other protocol instead");
+                VERIFIED = false;
+                return;
+            }
             while ((line = in.readLine()) != null){
+                chkredir(line);
                 if (line.isEmpty()){
                     break;
+                }
+                if (line.contains("200")){
+                    System.out.println("Connection Successful");
+                }else if (line.contains("404") || line.contains("400") || line.contains("403")){
+                    System.out.println("Connection unreachable");
+                    VERIFIED = false;
+                    return;
+                }else if (line.contains("206")){
+                    System.out.println("Resuming Connect Successful");
                 }
                if (redir){
                    if (line.contains("Location")){
                        keepNewLocation = line.split(": ")[1];
                        System.out.println("Redirecting!!!");
-                       break;
+                       new chkDL(keepNewLocation);
+                       return;
                    }
                }
                 if (line.contains("Content-Length")){

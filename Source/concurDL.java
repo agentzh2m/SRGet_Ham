@@ -1,6 +1,4 @@
 
-import sun.nio.ch.ThreadPool;
-
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -65,8 +63,6 @@ public class concurDL{
            for (int i = 0; i < metaFile.StartPosThread.size(); i++){
                newCon worker = new newCon(i, metaFile.StartPosThread.get(i), metaFile.EndPosThread.get(i), metaFile);
                worker.fname = filename;
-//               logger.log(Level.INFO, String.format("Byte Range: %d-%d, to Thread number: %d", metaFile.StartPosThread.get(i),
-//                       metaFile.EndPosThread.get(i), i));
                pool.execute(worker);
            }
        }
@@ -156,9 +152,6 @@ public class concurDL{
                                 datafile.write(ByteBuffer.wrap(byteBuffer, totalHeadByte, currentByte - totalHeadByte));
                                 totalByte += currentByte - totalHeadByte;
                                 this.metaFile.StartPosThread.set(ThreadNum, this.metaFile.StartPosThread.get(ThreadNum) + currentByte - totalHeadByte);
-//                                if (ThreadNum == 0) {
-//                                    System.out.println("For thread number 0, Current file pos: " + datafile.position() + " byte downloaded: " + totalByte);
-//                                }
                                 try {
                                     oos.writeObject(metaFile);
                                 }catch (IOException ex){

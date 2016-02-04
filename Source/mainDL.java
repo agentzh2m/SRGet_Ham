@@ -1,3 +1,5 @@
+import com.sun.deploy.util.StringUtils;
+
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -40,7 +42,7 @@ public class mainDL {
             sock.connect(servAdr);
             out = new PrintWriter(sock.getOutputStream(), true); //open a stream to write data to send to socket
             sock.setReceiveBufferSize(8192);
-            sock.setSoTimeout(3000);
+            //sock.setSoTimeout(3000);
         } catch (Exception e) {
             try {
                 sock.close();
@@ -58,9 +60,15 @@ public class mainDL {
         long TotalStartTime = System.nanoTime();
         currentData = new byte[8192];
         try {
-            BufferedWriter headFile = new BufferedWriter(new FileWriter(fname + ".HEAD", false));
-            dataFile = new FileOutputStream(fname + ".DATA", true);
-            out.println(HelperFX.getDLRequest(url.getHost(), url.getPath()));
+            BufferedWriter headFile = null;
+            if (chkDL.contentLength != -1) {
+                headFile = new BufferedWriter(new FileWriter(fname + ".HEAD", false));
+                dataFile = new FileOutputStream(fname + ".DATA", true);
+                out.println(HelperFX.getDLRequest(url.getHost(), url.getPath()));
+            }else {
+                out.println(HelperFX.getCloseReq(url.getHost(), url.getPath()));
+            }
+
             int currentByte = 0;
             System.out.println("Download Starto!!");
             while (currentByte != -1) {
@@ -86,11 +94,10 @@ public class mainDL {
                             if (content.equals("\r")) {
                                 rcv = true;
                             }
-                            if (content.equals("Transfer-Encoding: chunked")){
+                            if (content.contains("Transfer-Encoding: chunked")){
                                 ectDL();
-                                sock.close();
                                 etc = true;
-                                break;
+                                return;
                             }
                         } else {
                             byte[] tempData = new byte[currentData.length - totalHeadByte];
@@ -111,8 +118,9 @@ public class mainDL {
                     //write data into a .DATA file for resume support
                 } else {
                     dataFile.write(currentData, 0, currentByte);
-                    System.out.println(String.format("Download %f percent",(double)(((double)totalByte - (double)totalHeadByte)/(double)headerContentLength) * 100.00)  );
-
+                    if (headerContentLength != -1) {
+                        System.out.println(String.format("Download %f percent", (double) (((double) totalByte - (double) totalHeadByte) / (double) headerContentLength) * 100.00));
+                    }
                 }
                 //kill the download if the byte downloaded equals content length
                 if (totalByte - totalHeadByte == headerContentLength) {
@@ -149,7 +157,7 @@ public class mainDL {
             }
             long currentSize = data.length();
             BufferedReader readHead = new BufferedReader(new FileReader(head));
-            currentData = new byte[1024];
+            currentData = new byte[8192];
             String line = "";
             while ((line = readHead.readLine()) != null){
                 if (line.contains("headerContentLength")){
@@ -164,7 +172,7 @@ public class mainDL {
                 }
             }
             System.out.println("Finish recovering head info");
-            currentData = new byte[1024];
+            currentData = new byte[8192];
             int currentByte = 0;
             dataFile = new FileOutputStream(data, true);
             out.println(HelperFX.getResumeReq(url.getHost(), url.getPath(), currentSize));
@@ -242,41 +250,56 @@ public class mainDL {
 
     public void ectDL(){
         //ect have no resume support since we don't know the content length
+        totalHeadByte = 0;
+        System.out.println("Starting CTE Download!");
         try {
             dataFile = new FileOutputStream(fname + ".HAMUEL");
             rcv = false;
             currentData = new byte[8192];
             int currentByte = 0;
             while ((currentByte = sock.getInputStream().read(currentData)) != -1) {
-                currentData = new byte[8192];
-                String stx = new String(currentData);
-                if (!rcv){
-                    for (String content: stx.split("\n")){
-                        if (content.equals("\r")){
-                            rcv = true;
-                            break;
-                        }
-                    }
-                }else {
-                    List<Integer> writingData = new ArrayList<>();
-                    for (String content: stx.split("\n")){
-                        if (Pattern.matches("[0-9]+", content.replace("\r", ""))) {
-                            writingData.add(Integer.parseInt(content.replace("\r", "")) + content.length() + 1);
-                        }
-                    }
-                    int c = 0;
-                    for (Integer w: writingData){
-                        c+=w;
-                        dataFile.write(currentData, c, w);
-                        c+=2;
-                    }
-                }
+                System.out.println(currentByte);
+                System.out.println(currentByte);
+                dataFile.write(currentData, 0, currentByte);
             }
             dataFile.close();
             File DFile = new File(fname + ".HAMUEL");
-            System.out.println("ECT Download completed!");
-            System.out.println(DFile.renameTo(new File(fname)));
+            System.out.println("ECT Raw file downloaded!");
+            FileInputStream decodedFile = new FileInputStream(fname + ".HAMUEL");
+            FileOutputStream out = new FileOutputStream(fname + ".CTE");
+            byte[] buffer = new byte[2048];
+            int curB = 0;
+            int leftOverByte = 0;
+            int processByte = 0;
+            //starting the decoding process
+            System.out.println("Starting the decoding process");
+            while ((curB = decodedFile.read(buffer)) != -1){
+                String currentData = new String(buffer);
+                if (leftOverByte > 0){
+                    out.write(buffer, 0, leftOverByte);
+                    leftOverByte = 0;
+                }
+                for (String chunk: currentData.split("\r\n")){
+                    if (HelperFX.isNumeric(chunk)){
+                        if (processByte <= 2048) {
+                            out.write(buffer, chunk.length() + processByte + 2, Integer.parseInt(chunk));
+                            processByte += curB + Integer.parseInt(chunk);
+                        }else {
+                            leftOverByte = processByte - (curB + 2 + Integer.parseInt(chunk));
+                            processByte = 0;
+                            break;
+                        }
+                    }
+                }
+            }
+            out.close();
+            decodedFile.close();
+            System.out.println("Cleaning up");
+            System.out.println(new File(fname + ".HAMUEL").delete());
+            System.out.println(new File(fname+".CTE").renameTo(new File(fname)));
         }catch (IOException ex){
+            System.out.println(new File(fname + ".HAMUEL").delete());
+            System.out.println(new File(fname+".CTE").delete());
             ex.printStackTrace();
         }
 

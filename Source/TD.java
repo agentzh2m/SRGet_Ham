@@ -18,12 +18,13 @@ public class TD {
 
         //TD test22 = new TD();
         //test22.startDL("http://n467us.com/Data%20Files/Seattle%20Sectional%20South.jpg", "bigimg2.jpg");
-        //mainDL test03 = new mainDL("https://www.httpwatch.com/httpgallery/chunked/chunkedimage.aspx", "testimg.aspx");
-        //test03.newDL();
+        new chkDL("https://www.httpwatch.com/httpgallery/chunked/chunkedimage.aspx");
+        mainDL test03 = new mainDL("https://www.httpwatch.com/httpgallery/chunked/chunkedimage.aspx", "testCHUNK.jpg");
+        test03.newDL();
         //TestSer.testFile();
         //test Resume
-        chkDL test411 = new chkDL("http://n467us.com/Data%20Files/Seattle%20Sectional%20South.jpg");
-        concurDL test41 = new concurDL("http://n467us.com/Data%20Files/Seattle%20Sectional%20South.jpg","TestIMG_C.jpg", 5);
+//        chkDL test411 = new chkDL("http://n467us.com/Data%20Files/Seattle%20Sectional%20South.jpg");
+//        concurDL test41 = new concurDL("http://n467us.com/Data%20Files/Seattle%20Sectional%20South.jpg","TestIMG_C.jpg", 5);
 
 //            TD test55 = new TD();
 //            test55.ReadSerial("bigFileC.HEADC");

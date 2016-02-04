@@ -1,19 +1,15 @@
-# This is the speedy resumable thingy
+# This is the speedy resumable Concurrent Get HAMUEL version
+this version like to download cute cats JPG from the internet you can download a lot of cute cats if you want to 
+my Thread worker is a cat it is lazy and hard working at times :)
 
-The file have not been compile yet this is just the source code you need
-to compile first before using these file. 
-
-How to use compile the source using javac in the future I will write a bash script so that you
-can run ./srget.sh -o <output> -c <number of connection> <url>
- 
- Right now to test the program you have to write java interfaceDL -o <output> <url link>
- can only run the program within out/production directory except if you rebuild and recompile into
- another directory from the Source code (you can use javac) for that
- 
- Note: for people using IntelliJ just source to current working directory and IntelliJ you can write the compile
- and run the program without any problem or technical difficulties
+usage: run in the directory that is file is in  ./srget.sh -o <output> -c <number of connection> <url>
  
 The script is updated you can now run the script srget therefore you can call
-srget -o <Filename> <http://www.hamuel.com> YEH!! nice binary source in "Out"
+srget -o Hamuel.xyz http://www.hamuel.com YEH!! nice binary source in "Out"
+
+for concurrent connection you can do something below
+srget -o Hamuel.xyz -c 5 http://www.ham.net.com 
+Note: The Binary file can be run with JVM 1.8++ (install JVM before using it)
+warning the link and URL are fictional please take precaution when you are using it
 
 

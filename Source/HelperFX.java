@@ -20,6 +20,26 @@ public class HelperFX {
                 "\r\n\r\n", objname, serv, from, to);
     }
 
+    public static  String getCloseReq(String serv, String objname){
+        return String.format("GET %s HTTP/1.1\r\n" + "Host: %s\r\n" + "Connection: close\r\n"  +
+                "\r\n\r\n", objname, serv);
+    }
+
+
+    public static boolean isNumeric(String str)
+    {
+        try
+        {
+            double d = Double.parseDouble(str);
+        }
+        catch(NumberFormatException nfe)
+        {
+            return false;
+        }
+        return true;
+    }
+
+
 
     public static String unEscapeString(String s){
         StringBuilder sb = new StringBuilder();
