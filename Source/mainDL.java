@@ -258,8 +258,6 @@ public class mainDL {
             currentData = new byte[8192];
             int currentByte = 0;
             while ((currentByte = sock.getInputStream().read(currentData)) != -1) {
-                System.out.println(currentByte);
-                System.out.println(currentByte);
                 dataFile.write(currentData, 0, currentByte);
             }
             dataFile.close();
@@ -271,6 +269,7 @@ public class mainDL {
             int curB = 0;
             int leftOverByte = 0;
             int processByte = 0;
+            int chunkByte = 0;
             //starting the decoding process
             System.out.println("Starting the decoding process");
             while ((curB = decodedFile.read(buffer)) != -1){
@@ -281,14 +280,15 @@ public class mainDL {
                 }
                 for (String chunk: currentData.split("\r\n")){
                     if (HelperFX.isNumeric(chunk)){
-                        if (processByte <= 2048) {
-                            out.write(buffer, chunk.length() + processByte + 2, Integer.parseInt(chunk));
+                            chunkByte = Integer.parseInt(chunk);
+                            out.write(buffer, chunk.length() + processByte + 2, chunkByte);
                             processByte += curB + Integer.parseInt(chunk);
-                        }else {
-                            leftOverByte = processByte - (curB + 2 + Integer.parseInt(chunk));
+                            System.out.println("Process byte is: " + processByte);
+                    }else {
+                            leftOverByte = processByte - (curB + Integer.parseInt(chunk));
+                            System.out.println("Left Over Byte is: " + leftOverByte);
                             processByte = 0;
                             break;
-                        }
                     }
                 }
             }
