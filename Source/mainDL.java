@@ -39,8 +39,14 @@ public class mainDL {
             servAdr = new InetSocketAddress(url.getHost(), port);
             sock.connect(servAdr);
             out = new PrintWriter(sock.getOutputStream(), true); //open a stream to write data to send to socket
-            sock.setReceiveBufferSize(1024);
+            sock.setReceiveBufferSize(8192);
+            sock.setSoTimeout(3000);
         } catch (Exception e) {
+            try {
+                sock.close();
+            } catch (IOException e1) {
+                e1.printStackTrace();
+            }
             e.printStackTrace();
         }
         fname = Filename;
@@ -49,7 +55,8 @@ public class mainDL {
     }
 
     public void newDL() {
-        currentData = new byte[1024];
+        long TotalStartTime = System.nanoTime();
+        currentData = new byte[8192];
         try {
             BufferedWriter headFile = new BufferedWriter(new FileWriter(fname + ".HEAD", false));
             dataFile = new FileOutputStream(fname + ".DATA", true);
@@ -57,7 +64,7 @@ public class mainDL {
             int currentByte = 0;
             System.out.println("Download Starto!!");
             while (currentByte != -1) {
-                currentData = new byte[1024];
+                currentData = new byte[8192];
                 currentByte = sock.getInputStream().read(currentData);
                 totalByte += currentByte;
                 //extract header content
@@ -104,7 +111,7 @@ public class mainDL {
                     //write data into a .DATA file for resume support
                 } else {
                     dataFile.write(currentData, 0, currentByte);
-                    //System.out.println(String.format("Download %f percent",(double)(((double)totalByte - (double)totalHeadByte)/(double)headerContentLength) * 100.00)  );
+                    System.out.println(String.format("Download %f percent",(double)(((double)totalByte - (double)totalHeadByte)/(double)headerContentLength) * 100.00)  );
 
                 }
                 //kill the download if the byte downloaded equals content length
@@ -121,10 +128,12 @@ public class mainDL {
 
             }
             //delete and rename files after finish downloading completely
+            long TotalEndTime = System.nanoTime();
             File HFile = new File(fname + ".HEAD");
             File DFile = new File(fname + ".DATA");
             HFile.delete();
             DFile.renameTo(new File(fname));
+            System.out.println("Total Running time: " + (TotalEndTime - TotalStartTime)/1e9);
         } catch (IOException ex) {
             ex.printStackTrace();
         }
@@ -135,7 +144,9 @@ public class mainDL {
         boolean checkETag = true;
         boolean checkLastMod = true;
         try {
-            sock.connect(servAdr);
+            if (!sock.isConnected()) {
+                sock.connect(servAdr);
+            }
             long currentSize = data.length();
             BufferedReader readHead = new BufferedReader(new FileReader(head));
             currentData = new byte[1024];
@@ -234,10 +245,10 @@ public class mainDL {
         try {
             dataFile = new FileOutputStream(fname + ".HAMUEL");
             rcv = false;
-            currentData = new byte[1024];
+            currentData = new byte[8192];
             int currentByte = 0;
             while ((currentByte = sock.getInputStream().read(currentData)) != -1) {
-                currentData = new byte[1024];
+                currentData = new byte[8192];
                 String stx = new String(currentData);
                 if (!rcv){
                     for (String content: stx.split("\n")){

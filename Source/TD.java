@@ -22,20 +22,21 @@ public class TD {
         //test03.newDL();
         //TestSer.testFile();
         //test Resume
-//        chkDL test411 = new chkDL("http://n467us.com/Data%20Files/Seattle%20Sectional%20South.jpg");
-//        concurDL test41 = new concurDL("http://n467us.com/Data%20Files/Seattle%20Sectional%20South.jpg","TestIMG_C.jpg", 5);
+        chkDL test411 = new chkDL("http://n467us.com/Data%20Files/Seattle%20Sectional%20South.jpg");
+        concurDL test41 = new concurDL("http://n467us.com/Data%20Files/Seattle%20Sectional%20South.jpg","TestIMG_C.jpg", 5);
 
 //            TD test55 = new TD();
 //            test55.ReadSerial("bigFileC.HEADC");
 
 
-        chkDL test42 = new chkDL("http://cs.muic.mahidol.ac.th/~ktangwon/bigfile.xyz");
-        concurDL test421 = new concurDL("http://cs.muic.mahidol.ac.th/~ktangwon/bigfile.xyz","bigFileC" , 5);
+//        chkDL test42 = new chkDL("http://cs.muic.mahidol.ac.th/~ktangwon/bigfile.xyz");
+//        concurDL test421 = new concurDL("http://cs.muic.mahidol.ac.th/~ktangwon/bigfile.xyz","bigFileC" , 5);
 
-//        TD test001 = new TD();
-//        test001.testChannel();
-//        TD test002 = new TD();
-//        System.out.println(test002.testThreadPool());
+//        chkDL test52 = new chkDL("http://cs.muic.mahidol.ac.th/~ktangwon/hugefile.qqq");
+//        concurDL test521 = new concurDL("http://cs.muic.mahidol.ac.th/~ktangwon/hugefile.qqq", "myHugeFile.xxx" , 4);
+
+//        mainDL test59 = new mainDL("http://cs.muic.mahidol.ac.th/~ktangwon/hugefile.qqq", "hugeFile.xxx");
+//        test59.startResume(new File("hugeFile.xxx.HEAD"),new File("hugeFile.xxx.DATA"));
 
     }
 

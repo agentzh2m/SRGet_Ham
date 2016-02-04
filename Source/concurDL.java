@@ -1,9 +1,9 @@
 
+import sun.nio.ch.ThreadPool;
+
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
@@ -21,6 +21,7 @@ public class concurDL{
        ExecutorService pool = null;
        concurMeta metaFile = null;
        concurMeta currentMETA = null;
+       long totalStartTime = System.nanoTime();
        if (chkDL.contentLength == -1){
            System.out.println("The server does not support concurrent download dropping to one connection");
            mainDL DL = new mainDL(url_, filename);
@@ -84,15 +85,17 @@ public class concurDL{
        pool.shutdown();
        while (!pool.isTerminated()){
            try {
-               Thread.sleep(500);
+               Thread.sleep(2000);
            } catch (InterruptedException e) {
                e.printStackTrace();
            }
        }
+       long TotalEndTime = System.nanoTime();
        File DATA = new File(filename + ".DATAC");
        File HEAD = new File(filename + ".HEADC");
        System.out.println("Rename successful? : " + DATA.renameTo(new File(filename)));
        System.out.println("Meta file deleted or not? :" + HEAD.delete());
+       System.out.println("Total running time: " + (TotalEndTime - totalStartTime)/1e9);
    }
 
     public class newCon implements Runnable{
@@ -110,6 +113,7 @@ public class concurDL{
         String fname;
         RandomAccessFile dataFile;
         public void run(){
+
             FileOutputStream fos = null;
             ObjectOutputStream oos = null;
             int currentByte = 0;
@@ -121,8 +125,9 @@ public class concurDL{
             }
             FileChannel datafile = this.dataFile.getChannel();
             Logger logger = Logger.getLogger("ThreadLog");
+            long startTime = System.nanoTime();
+            logger.log(Level.INFO, "Get Thread ID" + Thread.currentThread().getId());
             mainDL DL = new mainDL(url, filename);
-            logger.log(Level.INFO, "start Thread this thread is: " + ThreadNum, Thread.currentThread());
             try {
                 DL.out.println(HelperFX.getPartContent(DL.url.getHost(), DL.url.getPath(), startingPOS, endPos));
                 datafile.position(startingPOS);
@@ -131,7 +136,7 @@ public class concurDL{
                 int totalByte = 0;
                 while (currentByte != -1){
                     oos = new ObjectOutputStream(fos);
-                    byteBuffer = new byte[1024];
+                    byteBuffer = new byte[8192];
                     currentByte = DL.sock.getInputStream().read(byteBuffer);
                     int totalHeadByte = 0;
                     if (!rcv){
@@ -167,9 +172,9 @@ public class concurDL{
                         datafile.write(ByteBuffer.wrap(byteBuffer, 0, currentByte));
                         totalByte += currentByte;
                         this.metaFile.StartPosThread.set(ThreadNum, this.metaFile.StartPosThread.get(ThreadNum) + currentByte);
-                        if (ThreadNum == 0) {
-                            System.out.println("For thread number 0, Current file pos: " + datafile.position() + " byte downloaded: " + totalByte);
-                        }
+//                        if (ThreadNum == 0) {
+//                            System.out.println("For thread number 0, Current file pos: " + datafile.position() + " byte downloaded: " + totalByte);
+//                        }
                         try {
                             oos.writeObject(metaFile);
                         }catch (IOException ex){
@@ -179,7 +184,10 @@ public class concurDL{
                     }
 
                     if (headerContentLength - totalHeadByte == totalByte){
-                        logger.log(Level.INFO, "Thread finish downloading, thread number" + ThreadNum);
+                        //logger.log(Level.INFO, "Thread finish downloading, thread number" + ThreadNum);
+                        long endTime = System.nanoTime();
+                        System.out.println(String.format("Thread number %d finish in %f millisec",
+                                Thread.currentThread().getId(), (endTime - startTime)/1e6 ));
                         DL.sock.close();
                         datafile.close();
                         oos.close();
