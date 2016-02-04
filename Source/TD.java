@@ -25,12 +25,12 @@ public class TD {
 //        chkDL test411 = new chkDL("http://n467us.com/Data%20Files/Seattle%20Sectional%20South.jpg");
 //        concurDL test41 = new concurDL("http://n467us.com/Data%20Files/Seattle%20Sectional%20South.jpg","TestIMG_C.jpg", 5);
 
-            TD test55 = new TD();
-            test55.ReadSerial("bigFileC.HEADC");
+//            TD test55 = new TD();
+//            test55.ReadSerial("bigFileC.HEADC");
 
 
-//        chkDL test42 = new chkDL("http://cs.muic.mahidol.ac.th/~ktangwon/bigfile.xyz");
-//        concurDL test421 = new concurDL("http://cs.muic.mahidol.ac.th/~ktangwon/bigfile.xyz","bigFileC" , 4);
+        chkDL test42 = new chkDL("http://cs.muic.mahidol.ac.th/~ktangwon/bigfile.xyz");
+        concurDL test421 = new concurDL("http://cs.muic.mahidol.ac.th/~ktangwon/bigfile.xyz","bigFileC" , 5);
 
 //        TD test001 = new TD();
 //        test001.testChannel();
@@ -116,13 +116,9 @@ public class TD {
             FileInputStream fis = new FileInputStream(filename);
             ObjectInputStream ois = new ObjectInputStream(fis);
             concurMeta META = (concurMeta) ois.readObject();
-            System.out.println("Start position");
-            for (long x: META.threadStartAt){
-                System.out.println(x);
-            }
-            System.out.println("Loaded stuff");
-            for (long x: META.workDoneOnEachPart){
-                System.out.println(x);
+            System.out.println("Byte positioning");
+            for (int i = 0; i < META.StartPosThread.size(); i++){
+                System.out.println(META.StartPosThread.get(i) + " - " + META.EndPosThread.get(i));
             }
         }catch (IOException ex){
             ex.printStackTrace();

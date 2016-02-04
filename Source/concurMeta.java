@@ -1,18 +1,17 @@
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by Hamuel on 2/3/16.
  */
 public class concurMeta implements Serializable {
-    long[] threadStartAt;
-    long[] workDoneOnEachPart;
+    List<Long> StartPosThread;
+    List<Long> EndPosThread;
 
-    public concurMeta(int TotalThread){
-        threadStartAt = new long[TotalThread];
-        workDoneOnEachPart = new long[TotalThread];
+    public concurMeta(){
+        StartPosThread = new ArrayList<>();
+        EndPosThread = new ArrayList<>();
     }
 
-    public void reCalculate(int NewTotalThread){
-
-    }
 }
